@@ -1,192 +1,238 @@
 # SatQuery AI
-### *Agentic Vision-Language AI for Multimodal Remote-Sensing Image Analysis*
 
-SatQuery is a specialized remote-sensing multimodal platform. It transforms natural-language queries (in English, Hindi, Hinglish, etc.) into evidence-grounded insights from satellite and aerial geographical imagery using an integrated FastAPI model inference service and React/Vite interface.
+SatQuery AI is a multimodal remote-sensing analysis project that lets users upload satellite or aerial imagery and ask questions in natural language. The app is designed to support English, Hindi, and Hinglish queries, making geospatial understanding more accessible for both technical and non-technical users.
 
----
+This repository contains the full stack for the project:
 
-## 1. System Architecture
-
-```
-                 USER
-                   │
-                   ▼
-            React / Vite UI
-                   │
-       Multipart / FormData Upload
-                   │
-                   ▼
-          FastAPI (Port 8000)
-                   │
-          ┌────────┴────────┐
-          │                 │
-     Validation        Query Handling
-   (100 MB Limit)   (Multilingual Support)
-          │                 │
-          └────────┬────────┘
-                   ▼
-             Model Service
-                   │
-          ┌────────┴────────┐
-          │                 │
-     Model Weights    .pkl Config
-   (InternVL 2.5-2B) (satquery_inference_config.pkl)
-          │                 │
-          └────────┬────────┘
-                   ▼
-              Preprocessing
-        (448x448 RGB, ImageNet Norm)
-                   │
-                   ▼
-             Actual Model
-                   │
-                   ▼
-           Inference Execution
-         (Token Logits Scoring)
-                   │
-                   ▼
-          Answer + Confidence
-                   │
-                   ▼
-             FastAPI JSON
-                   │
-                   ▼
-            React Workspace
-          ┌────────┴────────┐
-          ▼                 ▼
-    Uploaded Image      AI Answer
-                            +
-                       Confidence
-```
+- React + Vite frontend
+- FastAPI backend
+- Vision-language model inference layer
+- Upload validation and API orchestration
+- Remote-sensing image analysis workflow
 
 ---
 
-## 2. Model & Inference Configuration
+## Overview
 
-- **Trained Model Architecture**: OpenGVLab InternVL 2.5-2B (`OpenGVLab/InternVL2_5-2B`)
-- **Inference Bundle**: [`models/satquery_inference_config.pkl`](./models/satquery_inference_config.pkl)
-- **Image Input Format**: 448x448 RGB image tensor normalized with ImageNet mean `(0.485, 0.456, 0.406)` and std `(0.229, 0.224, 0.225)`
-- **Image Tokens**: 256 image context tokens per 448x448 patch
-- **Generation Parameters**:
-  - `num_beams`: 1
-  - `max_new_tokens`: 100
-  - `do_sample`: False
-  - `eos_token_id`: 92542
-- **Confidence Calculation**: Mathematically calculated from softmax probabilities over output token logits. If a model inference run does not provide legitimate token logits, `confidence` is returned as `null` without fabricating fake metrics.
+The goal of SatQuery is simple: turn satellite imagery into structured, answerable insights using AI. Instead of manually inspecting imagery, users can ask questions like:
 
-### Model Weights Placement
-Place local model weights inside the `models/` directory:
+- What land use patterns are visible in this image?
+- Are there roads, water bodies, or vegetation clusters?
+- What features stand out in this satellite scene?
+
+The backend processes the uploaded image and model input, then returns an AI-generated response with confidence information and status metadata.
+
+---
+
+## Key Features
+
+- Satellite and aerial image upload
+- Natural-language querying in English, Hindi, and Hinglish
+- Visual Question Answering (VQA)
+- AI-powered remote-sensing analysis workflow
+- Model inference with confidence scoring
+- FastAPI backend with structured API responses
+- Frontend and backend upload validation
+- 100 MB upload cap
+- CUDA / MPS / CPU device support
+- Modular architecture for future model expansion
+
+---
+
+## Tech Stack
+
+### Frontend
+- React
+- Vite
+- TypeScript
+- Tailwind CSS
+
+### Backend
+- Python
+- FastAPI
+- Uvicorn
+- Pydantic
+
+### AI / Inference
+- Vision-language model integration
+- Remote-sensing image preprocessing
+- Model lifecycle loading at startup
+
+---
+
+## Project Structure
+
+```text
+SatQuery/
+├── backend/
+│   ├── app/
+│   ├── tests/
+│   └── requirements.txt
+├── models/
+├── public/
+├── src/
+├── index.html
+├── package.json
+├── tailwind.config.js
+├── vite.config.ts
+├── run_backend.sh
+├── README.md
+└── requirements-ml.txt
 ```
+
+---
+
+## System Architecture
+
+```text
+User
+  │
+  ▼
+React / Vite UI
+  │
+  ▼
+FastAPI Backend
+  │
+  ├── Upload validation
+  ├── Query handling
+  ├── Model orchestration
+  └── Response formatting
+  │
+  ▼
+Vision-Language Model
+  │
+  ▼
+Image preprocessing + inference
+  │
+  ▼
+Answer + confidence + metadata
+```
+
+---
+
+## Model and Configuration
+
+The backend is designed to load a local vision-language model and related configuration from the project environment. The expected model setup is similar to:
+
+```text
 models/
 ├── InternVL2_5-2B/
 │   ├── config.json
-│   ├── model.safetensors (or pytorch_model.bin)
+│   ├── model.safetensors
 │   ├── tokenizer.json
 │   └── ...
 └── satquery_inference_config.pkl
 ```
-Alternatively, configure `MODEL_PATH` to point to a local directory or Hugging Face Hub repository.
+
+The app can be configured to point to a local model directory or a model repository path depending on the environment.
 
 ---
 
-## 3. 100 MB Upload Limit
+## Upload Limit
 
-SatQuery AI enforces a strict **100 MB** upload limit on both ends:
-- **Frontend Client**: Blocks files > 100 MB before upload and displays: `"File size exceeds the 100 MB limit."`
-- **FastAPI Backend**: Validates payload size and returns HTTP 413 Entity Too Large with `"File size exceeds the 100 MB limit."`
+The project enforces a strict 100 MB maximum upload size for both the frontend and backend.
 
----
-
-## 4. Hardware Requirements & Device Support
-
-The backend automatically detects the best available computing device:
-- **NVIDIA GPU (CUDA)**: Uses CUDA acceleration and optional 4-bit quantization.
-- **Apple Silicon (MPS)**: Uses Metal Performance Shaders on macOS.
-- **CPU Fallback**: Full CPU execution fallback when no GPU is available.
+- Frontend blocks oversized files before upload
+- Backend rejects large requests with HTTP 413
+- User-facing message: "File size exceeds the 100 MB limit."
 
 ---
 
-## 5. Getting Started
+## Getting Started
 
 ### Prerequisites
-- Node.js >= 18.0 & npm >= 9.0
-- Python >= 3.10
 
-### Step 1: Install Frontend Dependencies
+- Node.js 18+
+- npm 9+
+- Python 3.10+
+
+### 1. Install frontend dependencies
+
 ```bash
 npm install
 ```
 
-### Step 2: Set Up Python Backend Environment
+### 2. Set up backend environment
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
-### Step 3: Run the FastAPI Backend
-```bash
-# Using the helper script:
-./run_backend.sh
+### 3. Run the backend
 
-# Or directly with uvicorn:
+Using the helper script:
+
+```bash
+./run_backend.sh
+```
+
+Or directly:
+
+```bash
 python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-The backend API documentation is available at `http://localhost:8000/docs`.
 
-### Step 4: Run the React Frontend
+API documentation is available at:
+
+```text
+http://localhost:8000/docs
+```
+
+### 4. Run the frontend
+
 ```bash
 npm run dev
 ```
-Open `http://localhost:5173` in your browser.
+
+Then open:
+
+```text
+http://localhost:5173
+```
 
 ---
 
-## 6. API Endpoints
+## API Endpoints
+
+The backend exposes these main endpoints:
 
 | Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/health` | Service health, active device, model loaded status, and upload limits |
-| `POST` | `/api/analyze` | Unified analysis endpoint accepting image (max 100 MB) and query |
-| `POST` | `/api/vqa` | Specialized Visual Question Answering |
-| `POST` | `/api/ground` | Specialized Visual Grounding |
+| --- | --- | --- |
+| GET | /api/health | Returns service health and model status |
+| POST | /api/analyze | Main image analysis endpoint |
+| POST | /api/vqa | Visual question answering |
+| POST | /api/ground | Grounding-related analysis |
 
-### Example Request (`POST /api/analyze`)
+Example request:
+
 ```bash
 curl -X POST http://localhost:8000/api/analyze \
   -F "image=@photo.jpg" \
   -F "query=What geographical features are visible in this satellite image?"
 ```
 
-### Example Response
-```json
-{
-  "success": true,
-  "taskId": "sat-1741366123456-a1b2c3",
-  "question": "What geographical features are visible in this satellite image?",
-  "answer": "The image reveals a distinct coastline with active tidal estuaries and dense coastal vegetation.",
-  "confidence": 0.8937,
-  "model": "OpenGVLab/InternVL2_5-2B",
-  "status": "completed"
-}
-```
+---
+
+## Roadmap
+
+Planned improvements include:
+
+- More domain-specific remote-sensing fine-tuning
+- Improved visual grounding and overlays
+- Multi-sensor analysis support
+- Change detection across time-series imagery
+- More robust multilingual evaluation and QA flows
 
 ---
 
-## 7. Development Roadmap
+## License
 
-- **CURRENT**:
-  - React/Vite interactive geospatial workspace
-  - FastAPI backend integration
-  - 100 MB upload limit validation (frontend & backend)
-  - Multilingual natural language querying (English, Hindi, Hinglish)
-  - Single-load model lifecycle and confidence scoring
-- **NEXT**:
-  - Domain-specific remote-sensing model fine-tuning
-  - Visual grounding segmentation overlays
-  - Optical + SAR multi-sensor fusion
-  - Automated change detection across temporal pairs
-- **FUTURE**:
-  - Autonomous multi-agent query decomposition
-  - Distributed multi-sensor inference pipelines
-  - Mission-scale geospatial intelligence deployment
+This project is licensed under the terms in the repository license file.
+
+---
+
+## Note
+
+This repo is a prototype / active research-style project, so local model setup and environment configuration may vary depending on hardware and available model artifacts.
