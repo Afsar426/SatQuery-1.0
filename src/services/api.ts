@@ -3,7 +3,6 @@ import {
   AnalysisResponse, 
   HealthStatus 
 } from '../types/analysis';
-import { generateMockAnalysis } from '../data/demo';
 
 // Configuration for future FastAPI backend
 const envBaseUrl = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL;
@@ -16,8 +15,8 @@ class SatQueryApiService {
 
   constructor() {
     this.baseUrl = API_BASE_URL;
-    // Default to true for this SIH frontend demonstration until FastAPI backend is spun up
-    this.forceMock = true;
+    // Strict requirement: NO MOCK AI. Connects directly to FastAPI backend.
+    this.forceMock = false;
   }
 
   public setMockMode(enabled: boolean) {
@@ -32,16 +31,6 @@ class SatQueryApiService {
    * Healthcheck endpoint: GET /api/health
    */
   public async checkHealth(): Promise<HealthStatus> {
-    if (this.forceMock) {
-      return {
-        status: 'operational',
-        timestamp: new Date().toISOString(),
-        backendUrl: this.baseUrl,
-        modelsLoaded: ['RS-Grounding-v2.1', 'RS-VLM-v1.8', 'RS-Urban-v1.4'],
-        version: '1.0.0-sih2026'
-      };
-    }
-
     try {
       const response = await fetch(`${this.baseUrl}/api/health`, {
         method: 'GET',
@@ -53,15 +42,8 @@ class SatQueryApiService {
       }
 
       return await response.json();
-    } catch (err) {
-      // Graceful fallback during demo if backend is not running
-      return {
-        status: 'operational',
-        timestamp: new Date().toISOString(),
-        backendUrl: this.baseUrl,
-        modelsLoaded: ['RS-Grounding-v2.1', 'RS-VLM-v1.8'],
-        version: '1.0.0-demo-mode'
-      };
+    } catch (err: any) {
+      throw new Error(err.message || 'Cannot connect to SatQuery AI backend');
     }
   }
 
@@ -69,39 +51,52 @@ class SatQueryApiService {
    * Primary unified analysis endpoint: POST /api/analyze
    */
   public async analyze(request: AnalysisRequest): Promise<AnalysisResponse> {
-    if (this.forceMock) {
-      // Simulate realistic agentic pipeline network latency (500ms - 900ms)
-      await new Promise(res => setTimeout(res, 750));
-      return generateMockAnalysis(request.query, request.imageName || request.image?.name || 'satellite_image.jpg');
+    const formData = new FormData();
+    if (request.image) {
+      formData.append('image', request.image);
+    }
+    if (request.imageUrl) {
+      formData.append('image_url', request.imageUrl);
+    }
+    formData.append('query', request.query);
+    if (request.mode) {
+      formData.append('mode', request.mode);
     }
 
     try {
-      const formData = new FormData();
-      if (request.image) {
-        formData.append('file', request.image);
-      }
-      if (request.imageUrl) {
-        formData.append('image_url', request.imageUrl);
-      }
-      formData.append('query', request.query);
-      if (request.mode) {
-        formData.append('mode', request.mode);
-      }
-
+      // NOTE: Browser automatically computes multipart/form-data boundary with FormData
       const response = await fetch(`${this.baseUrl}/api/analyze`, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Backend error (${response.status}): ${errorText || response.statusText}`);
+        let errorMessage = `Backend error (${response.status})`;
+        try {
+          const errorJson = await response.json();
+          if (errorJson.detail) {
+            errorMessage = errorJson.detail;
+          }
+        } catch {
+          const text = await response.text();
+          if (text) errorMessage = text;
+        }
+        throw new Error(errorMessage);
       }
 
       return await response.json();
-    } catch (error) {
-      console.warn('Real backend connection failed; falling back to demo simulation:', error);
-      return generateMockAnalysis(request.query, request.imageName || 'satellite_image.jpg');
+    } catch (error: any) {
+      // If error already has a descriptive message from server, throw it directly
+      if (error instanceof Error && error.message.includes('File size exceeds')) {
+        throw error;
+      }
+      if (error instanceof Error && error.message.includes('Model is not loaded')) {
+        throw error;
+      }
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error(`Cannot connect to SatQuery AI backend at ${this.baseUrl}. Please start the backend with ./run_backend.sh`);
+      }
+      throw error;
     }
   }
 
@@ -109,13 +104,8 @@ class SatQueryApiService {
    * Specialized Visual Question Answering: POST /api/vqa
    */
   public async vqa(request: AnalysisRequest): Promise<AnalysisResponse> {
-    if (this.forceMock) {
-      await new Promise(res => setTimeout(res, 700));
-      return generateMockAnalysis(request.query, request.imageName);
-    }
-
     const formData = new FormData();
-    if (request.image) formData.append('file', request.image);
+    if (request.image) formData.append('image', request.image);
     formData.append('query', request.query);
 
     const response = await fetch(`${this.baseUrl}/api/vqa`, {
@@ -124,7 +114,8 @@ class SatQueryApiService {
     });
 
     if (!response.ok) {
-      throw new Error(`VQA API failed with status ${response.status}`);
+      const err = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(err.detail || `VQA API failed with status ${response.status}`);
     }
 
     return await response.json();
@@ -134,13 +125,8 @@ class SatQueryApiService {
    * Specialized Visual Grounding: POST /api/ground
    */
   public async ground(request: AnalysisRequest): Promise<AnalysisResponse> {
-    if (this.forceMock) {
-      await new Promise(res => setTimeout(res, 800));
-      return generateMockAnalysis(request.query, request.imageName);
-    }
-
     const formData = new FormData();
-    if (request.image) formData.append('file', request.image);
+    if (request.image) formData.append('image', request.image);
     formData.append('query', request.query);
 
     const response = await fetch(`${this.baseUrl}/api/ground`, {
@@ -149,7 +135,8 @@ class SatQueryApiService {
     });
 
     if (!response.ok) {
-      throw new Error(`Grounding API failed with status ${response.status}`);
+      const err = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(err.detail || `Grounding API failed with status ${response.status}`);
     }
 
     return await response.json();

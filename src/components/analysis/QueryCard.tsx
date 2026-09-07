@@ -18,14 +18,6 @@ export const QueryCard: React.FC<QueryCardProps> = ({
   hasImage,
   errorMessage
 }) => {
-  const exampleQuestions = [
-    'Where is the water body?',
-    'Describe this image',
-    'Find built-up area',
-    'Calculate NDVI',
-    'Is there a forest area?'
-  ];
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
@@ -47,34 +39,19 @@ export const QueryCard: React.FC<QueryCardProps> = ({
 
       <div className="flex-1 flex flex-col justify-between space-y-4">
         {/* Natural Language Query Textarea */}
-        <div className="relative">
+        <div className="relative flex-1 flex flex-col">
           <textarea
             value={query}
             onChange={(e) => setQuery(e.target.value.slice(0, 500))}
             onKeyDown={handleKeyDown}
-            placeholder="Ask something about this satellite image... (e.g. 'Where is the water body?')"
-            rows={4}
-            className="w-full text-xs sm:text-sm bg-sat-surface/40 border border-sat-border rounded-lg p-3.5 text-sat-ink placeholder-sat-slate/70 focus:outline-none focus:ring-1 focus:ring-sat-blue focus:border-sat-blue transition-all resize-none font-sans"
+            placeholder="Type your question about the uploaded image in your language (e.g. English, हिन्दी, Hinglish)..."
+            rows={5}
+            className="w-full flex-1 min-h-[140px] text-xs sm:text-sm bg-sat-surface/40 border border-sat-border rounded-lg p-3.5 text-sat-ink placeholder-sat-slate/70 focus:outline-none focus:ring-1 focus:ring-sat-blue focus:border-sat-blue transition-all resize-none font-sans leading-relaxed"
           />
-        </div>
-
-        {/* Example Questions Chips */}
-        <div>
-          <span className="text-[10px] uppercase font-mono tracking-wider text-sat-slate block mb-2">
-            Example Questions:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {exampleQuestions.map((q) => (
-              <button
-                key={q}
-                type="button"
-                onClick={() => setQuery(q)}
-                className="px-2.5 py-1 bg-sat-surface hover:bg-sat-border/60 border border-sat-border text-sat-ink text-xs rounded transition-colors text-left"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
+          <p className="text-[11px] text-sat-slate mt-2 flex items-center gap-1.5 font-sans">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-sat-blue"></span>
+            <span>You can ask your own question in your preferred language (English, Hindi, Hinglish, etc.).</span>
+          </p>
         </div>
 
         {/* Error Warning */}
@@ -100,7 +77,7 @@ export const QueryCard: React.FC<QueryCardProps> = ({
           {isAnalyzing ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin text-white" />
-              <span>Analyzing satellite imagery...</span>
+              <span>Analyzing image...</span>
             </>
           ) : (
             <>

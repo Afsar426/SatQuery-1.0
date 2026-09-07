@@ -1,0 +1,13 @@
+# SatQuery AI ML & Inference Dependencies
+# Compatible across CUDA (NVIDIA), Apple Silicon MPS, and CPU fallback
+torch>=2.1.0
+torchvision>=0.16.0
+transformers>=4.37.2,<5.0.0
+timm>=0.9.12
+accelerate>=0.26.0
+einops>=0.7.0
+sentencepiece>=0.2.0
+peft>=0.7.0
+joblib>=1.3.0
+numpy>=1.24.0
+pillow>=10.2.0

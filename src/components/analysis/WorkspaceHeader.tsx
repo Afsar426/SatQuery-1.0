@@ -32,10 +32,10 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({ onGoHome }) =>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-sat-border pb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-sat-ink tracking-tight">
-            Analyze Satellite Imagery
+            Analyze Geographical Imagery
           </h1>
           <p className="text-xs sm:text-sm text-sat-slate mt-1.5 max-w-3xl leading-relaxed">
-            Upload satellite imagery and ask your question, SatQuery analyzes and provides evidence-backed insights using specialized models and geospatial tools.
+            Upload geographical imagery and ask your question, SatQuery analyzes and provides evidence-backed insights using specialized models and geospatial tools.
           </p>
         </div>
 

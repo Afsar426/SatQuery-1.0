@@ -96,73 +96,81 @@ export const SATELLITE_SAMPLE_IMAGES = {
   </svg>`
 };
 
-export const PRESET_SAMPLES: PresetSample[] = [
-  {
-    id: 'sentinel2_water_basin',
-    name: 'sentinel2_sample.jpg',
-    category: 'Water Resources',
-    imageUrl: SATELLITE_SAMPLE_IMAGES.waterBodyInput,
-    fileSize: '2.4 MB',
-    recommendedQueries: [
-      'Where is the water body in this image?',
-      'Describe this image',
-      'What objects are visible?',
-      'Calculate NDVI',
-      'Find built-up area'
-    ],
-    description: 'Sentinel-2 MSI true color acquisition showing riparian corridor and northern water storage reservoir.'
-  },
-  {
-    id: 'urban_settlement',
-    name: 'delhi_ncr_urban_patch.jpg',
-    category: 'Urban Planning',
-    imageUrl: SATELLITE_SAMPLE_IMAGES.waterBodyInput, // fallback gracefully
-    fileSize: '3.1 MB',
-    recommendedQueries: [
-      'Find built-up area',
-      'Highlight the built-up area',
-      'What percentage is urbanized?',
-      'Describe this image'
-    ],
-    description: 'High-density urban development featuring transportation networks and institutional infrastructure.'
-  },
-  {
-    id: 'punjab_farmlands',
-    name: 'punjab_cropland_sector.jpg',
-    category: 'Agriculture',
-    imageUrl: SATELLITE_SAMPLE_IMAGES.waterBodyInput,
-    fileSize: '2.8 MB',
-    recommendedQueries: [
-      'Calculate NDVI',
-      'Identify irrigated agricultural parcels',
-      'Is there a forest area?'
-    ],
-    description: 'Precision agricultural parcels with distinct vegetative phenology across crop cycles.'
-  }
-];
+export const PRESET_SAMPLES: PresetSample[] = [];
 
 // High-fidelity Mock Response matching SIH demo and mockup requirements
 export function generateMockAnalysis(
   query: string, 
-  imageName: string = 'sentinel2_sample.jpg'
+  imageName: string = 'uploaded_image.jpg'
 ): AnalysisResponse {
   const normalizedQuery = query.toLowerCase().trim();
+  const isHindi = /[\u0900-\u097F]/.test(query);
+  const isHinglish = /\b(kya|dikh|dikha|raha|rahi|hai|hain|mein|kahan|pani|khet|nadi|ye)\b/i.test(query);
 
-  // Scenario 1: Water Body Grounding (Primary Demonstration Scenario)
+  // Multilingual Handler: Hindi (Devanagari script)
+  if (isHindi) {
+    if (query.includes('जल') || query.includes('पानी') || query.includes('नदी') || query.includes('कहाँ') || query.includes('कहा')) {
+      return {
+        taskId: 'TASK-HI-01',
+        status: 'completed',
+        task: 'Visual Question Answering',
+        model: 'SatQuery-GeoVLM',
+        answer: 'छवि के उत्तरी भाग में एक जल निकाय (नदी और जलाशय) स्थित है, जिसके साथ सहायक जल मार्ग जुड़े हुए हैं।',
+        confidence: 0.92,
+        executionTrace: []
+      };
+    }
+
+    return {
+      taskId: 'TASK-HI-02',
+      status: 'completed',
+      task: 'Visual Question Answering',
+      model: 'SatQuery-GeoVLM',
+      answer: 'इस छवि में कृषि भूमि, सड़क नेटवर्क और जल स्रोत स्पष्ट रूप से दिखाई दे रहे हैं।',
+      confidence: 0.92,
+      executionTrace: []
+    };
+  }
+
+  // Multilingual Handler: Hinglish
+  if (isHinglish) {
+    if (normalizedQuery.includes('pani') || normalizedQuery.includes('water') || normalizedQuery.includes('kahan') || normalizedQuery.includes('nadi')) {
+      return {
+        taskId: 'TASK-HING-01',
+        status: 'completed',
+        task: 'Visual Question Answering',
+        model: 'SatQuery-GeoVLM',
+        answer: 'Image ke northern part mein water body (river / reservoir) clearly identify hui hai.',
+        confidence: 0.92,
+        executionTrace: []
+      };
+    }
+
+    return {
+      taskId: 'TASK-HING-02',
+      status: 'completed',
+      task: 'Visual Question Answering',
+      model: 'SatQuery-GeoVLM',
+      answer: 'Image mein agricultural land, roads aur water body clearly visible hain.',
+      confidence: 0.92,
+      executionTrace: []
+    };
+  }
+
+  // Scenario 1: Water Body Query
   if (
     normalizedQuery.includes('water') || 
     normalizedQuery.includes('river') || 
     normalizedQuery.includes('lake') ||
-    normalizedQuery === '' ||
     normalizedQuery.includes('where is')
   ) {
     return {
       taskId: 'TASK-GROUND-2026-0904',
       status: 'completed',
-      task: 'Visual Grounding',
-      model: 'Remote-Sensing Grounding Model (RS-Grounding-v2.1)',
+      task: 'Visual Question Answering',
+      model: 'SatQuery-GeoVLM',
       answer: 'A water body is present in the northern part of the image. It appears to be a river or lake with a southern feeder tributary.',
-      confidence: 0.91,
+      confidence: 0.92,
       detectedArea: '2.34 km²',
       coordinates: {
         lat: 22.431,
@@ -195,7 +203,7 @@ export function generateMockAnalysis(
         acquisitionDate: '2026-08-14 05:42 UTC',
         resolutionGsd: '10.0 meters/pixel',
         bandsUsed: ['B04 (Red)', 'B03 (Green)', 'B02 (Blue)', 'B08 (NIR)'],
-        projection: 'WGS 84 / UTM Zone 43N (EPSG:32643)',
+        projection: 'WGS 84 / UTM Zone 43N',
         cloudCoverPercentage: 0.4,
         dimensions: { width: 1024, height: 768 }
       },
@@ -240,7 +248,7 @@ export function generateMockAnalysis(
           id: 'step-5',
           stepNumber: 5,
           label: 'Visual Evidence Generated',
-          detail: `Vector contour boundary generated (142 vertices). GeoJSON polygon mapped to EPSG:32643 coordinate plane. Mask rendered for visualization.`,
+          detail: `Vector contour boundary generated (142 vertices). GeoJSON polygon mapped to standard coordinate plane. Mask rendered for visualization.`,
           status: 'completed',
           durationMs: 64,
           timestamp: '10:24:01.669'
@@ -259,14 +267,14 @@ export function generateMockAnalysis(
   }
 
   // Scenario 2: Visual Question Answering (VQA) / Scene Description
-  if (normalizedQuery.includes('describe') || normalizedQuery.includes('what') || normalizedQuery.includes('objects')) {
+  if (normalizedQuery.includes('describe') || normalizedQuery.includes('what') || normalizedQuery.includes('visible') || normalizedQuery.includes('objects')) {
     return {
       taskId: 'TASK-VQA-2026-0905',
       status: 'completed',
       task: 'Visual Question Answering',
-      model: 'Remote-Sensing Vision-Language Model (RS-VLM-v1.8)',
-      answer: 'The satellite scene depicts an agrarian landscape intersected by a natural freshwater river system in the center, flowing into an expansive reservoir in the northern sector. Surrounding terrain comprises mixed agricultural plots and light riparian vegetation.',
-      confidence: 0.88,
+      model: 'SatQuery-GeoVLM',
+      answer: 'The image shows agricultural land with road networks.',
+      confidence: 0.92,
       detectedArea: '18.60 km² (total frame)',
       coordinates: {
         lat: 22.431,
@@ -298,7 +306,7 @@ export function generateMockAnalysis(
         acquisitionDate: '2026-08-14 05:42 UTC',
         resolutionGsd: '10.0 meters/pixel',
         bandsUsed: ['B04 (Red)', 'B03 (Green)', 'B02 (Blue)'],
-        projection: 'WGS 84 (EPSG:4326)',
+        projection: 'WGS 84',
         cloudCoverPercentage: 0.4
       },
       executionTrace: [
@@ -400,7 +408,7 @@ export function generateMockAnalysis(
         acquisitionDate: '2026-08-14 05:42 UTC',
         resolutionGsd: '10.0 meters/pixel',
         bandsUsed: ['B04 (Red)', 'B11 (SWIR)'],
-        projection: 'WGS 84 (EPSG:4326)',
+        projection: 'WGS 84',
         cloudCoverPercentage: 0.4
       },
       executionTrace: [
@@ -418,10 +426,10 @@ export function generateMockAnalysis(
   return {
     taskId: 'TASK-GEN-2026-0907',
     status: 'completed',
-    task: 'Visual Grounding',
-    model: 'Remote-Sensing Grounding Model (RS-Grounding-v2.1)',
-    answer: `Analysis complete for: "${query}". Relevant geospatial features have been identified and correlated with multi-spectral reflectance signatures.`,
-    confidence: 0.89,
+    task: 'Visual Question Answering',
+    model: 'SatQuery-GeoVLM',
+    answer: 'The image shows agricultural land with road networks.',
+    confidence: 0.92,
     detectedArea: '2.34 km²',
     coordinates: {
       lat: 22.431,
@@ -453,7 +461,7 @@ export function generateMockAnalysis(
       acquisitionDate: '2026-08-14 05:42 UTC',
       resolutionGsd: '10.0 meters/pixel',
       bandsUsed: ['B04 (Red)', 'B03 (Green)', 'B02 (Blue)', 'B08 (NIR)'],
-      projection: 'WGS 84 (EPSG:4326)',
+      projection: 'WGS 84',
       cloudCoverPercentage: 0.4
     },
     executionTrace: [

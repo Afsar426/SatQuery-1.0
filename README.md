@@ -1,66 +1,192 @@
-# SatQuery
-### *Earth Observation Intelligence*
+# SatQuery AI
+### *Agentic Vision-Language AI for Multimodal Remote-Sensing Image Analysis*
 
-SatQuery is an agentic remote-sensing platform developed for the SIH 2026 demonstration. It transforms natural-language queries into evidence-grounded insights from satellite imagery using specialized remote-sensing models, GeoAI tools, and multi-sensor orchestration.
-
----
-
-## Key Features
-
-1. **Natural-Language Geospatial Querying**: Ask questions in plain English (e.g., *"Where is the water body in this image?"*, *"Describe this image"*, *"Find built-up area"*).
-2. **Visual Grounding**: Automatic localization and vector polygon highlighting of spatial targets over multi-spectral satellite granules.
-3. **Multi-Spectral VQA**: Factual scene interpretation across optical (Sentinel-2, Landsat, Cartosat-3) and SAR data.
-4. **Observable Agent Execution Pipeline**: Real-time tracking of image validation, intent classification, specialist model dispatch, tensor inference, and vector generation without black-box hallucination.
-5. **Interactive Evidence Viewer**: Side-by-side comparison, opacity slider, split-screen wipe, and geospatial coordinate inspection (EPSG:4326/32643).
-6. **FastAPI-Ready Client Architecture**: Clean separation between React presentation components and the centralized API client (`src/services/api.ts`).
+SatQuery is a specialized remote-sensing multimodal platform. It transforms natural-language queries (in English, Hindi, Hinglish, etc.) into evidence-grounded insights from satellite and aerial geographical imagery using an integrated FastAPI model inference service and React/Vite interface.
 
 ---
 
-## Design System
+## 1. System Architecture
 
-Designed specifically to reflect a serious **Government Research & Earth Observation Mission** portal:
-- **Background**: Warm Off-White / Ivory (`#F5F5F1`)
-- **Primary Text**: Deep Navy / Ink (`#17212B`)
-- **Primary Accent**: Muted Space Blue (`#315A73`)
-- **Slate Gray**: `#66737D`
-- **Border**: Light Boundary Gray (`#D8DCD9`)
-- **Status Indicators**: Restrained green, amber, and red indicators without neon, cyberpunk, or excessive glow.
+```
+                 USER
+                   │
+                   ▼
+            React / Vite UI
+                   │
+       Multipart / FormData Upload
+                   │
+                   ▼
+          FastAPI (Port 8000)
+                   │
+          ┌────────┴────────┐
+          │                 │
+     Validation        Query Handling
+   (100 MB Limit)   (Multilingual Support)
+          │                 │
+          └────────┬────────┘
+                   ▼
+             Model Service
+                   │
+          ┌────────┴────────┐
+          │                 │
+     Model Weights    .pkl Config
+   (InternVL 2.5-2B) (satquery_inference_config.pkl)
+          │                 │
+          └────────┬────────┘
+                   ▼
+              Preprocessing
+        (448x448 RGB, ImageNet Norm)
+                   │
+                   ▼
+             Actual Model
+                   │
+                   ▼
+           Inference Execution
+         (Token Logits Scoring)
+                   │
+                   ▼
+          Answer + Confidence
+                   │
+                   ▼
+             FastAPI JSON
+                   │
+                   ▼
+            React Workspace
+          ┌────────┴────────┐
+          ▼                 ▼
+    Uploaded Image      AI Answer
+                            +
+                       Confidence
+```
 
 ---
 
-## Getting Started
+## 2. Model & Inference Configuration
+
+- **Trained Model Architecture**: OpenGVLab InternVL 2.5-2B (`OpenGVLab/InternVL2_5-2B`)
+- **Inference Bundle**: [`models/satquery_inference_config.pkl`](./models/satquery_inference_config.pkl)
+- **Image Input Format**: 448x448 RGB image tensor normalized with ImageNet mean `(0.485, 0.456, 0.406)` and std `(0.229, 0.224, 0.225)`
+- **Image Tokens**: 256 image context tokens per 448x448 patch
+- **Generation Parameters**:
+  - `num_beams`: 1
+  - `max_new_tokens`: 100
+  - `do_sample`: False
+  - `eos_token_id`: 92542
+- **Confidence Calculation**: Mathematically calculated from softmax probabilities over output token logits. If a model inference run does not provide legitimate token logits, `confidence` is returned as `null` without fabricating fake metrics.
+
+### Model Weights Placement
+Place local model weights inside the `models/` directory:
+```
+models/
+├── InternVL2_5-2B/
+│   ├── config.json
+│   ├── model.safetensors (or pytorch_model.bin)
+│   ├── tokenizer.json
+│   └── ...
+└── satquery_inference_config.pkl
+```
+Alternatively, configure `MODEL_PATH` to point to a local directory or Hugging Face Hub repository.
+
+---
+
+## 3. 100 MB Upload Limit
+
+SatQuery AI enforces a strict **100 MB** upload limit on both ends:
+- **Frontend Client**: Blocks files > 100 MB before upload and displays: `"File size exceeds the 100 MB limit."`
+- **FastAPI Backend**: Validates payload size and returns HTTP 413 Entity Too Large with `"File size exceeds the 100 MB limit."`
+
+---
+
+## 4. Hardware Requirements & Device Support
+
+The backend automatically detects the best available computing device:
+- **NVIDIA GPU (CUDA)**: Uses CUDA acceleration and optional 4-bit quantization.
+- **Apple Silicon (MPS)**: Uses Metal Performance Shaders on macOS.
+- **CPU Fallback**: Full CPU execution fallback when no GPU is available.
+
+---
+
+## 5. Getting Started
 
 ### Prerequisites
-- Node.js >= 18.0
-- npm >= 9.0
+- Node.js >= 18.0 & npm >= 9.0
+- Python >= 3.10
 
-### Installation
+### Step 1: Install Frontend Dependencies
 ```bash
-# Install dependencies
 npm install
-
-# Start local development server
-npm run dev
 ```
 
-### Production Build
+### Step 2: Set Up Python Backend Environment
 ```bash
-npm run build
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+```
+
+### Step 3: Run the FastAPI Backend
+```bash
+# Using the helper script:
+./run_backend.sh
+
+# Or directly with uvicorn:
+python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+The backend API documentation is available at `http://localhost:8000/docs`.
+
+### Step 4: Run the React Frontend
+```bash
+npm run dev
+```
+Open `http://localhost:5173` in your browser.
+
+---
+
+## 6. API Endpoints
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/health` | Service health, active device, model loaded status, and upload limits |
+| `POST` | `/api/analyze` | Unified analysis endpoint accepting image (max 100 MB) and query |
+| `POST` | `/api/vqa` | Specialized Visual Question Answering |
+| `POST` | `/api/ground` | Specialized Visual Grounding |
+
+### Example Request (`POST /api/analyze`)
+```bash
+curl -X POST http://localhost:8000/api/analyze \
+  -F "image=@photo.jpg" \
+  -F "query=What geographical features are visible in this satellite image?"
+```
+
+### Example Response
+```json
+{
+  "success": true,
+  "taskId": "sat-1741366123456-a1b2c3",
+  "question": "What geographical features are visible in this satellite image?",
+  "answer": "The image reveals a distinct coastline with active tidal estuaries and dense coastal vegetation.",
+  "confidence": 0.8937,
+  "model": "OpenGVLab/InternVL2_5-2B",
+  "status": "completed"
+}
 ```
 
 ---
 
-## FastAPI Backend Integration
+## 7. Development Roadmap
 
-The frontend includes a centralized API client located in [`src/services/api.ts`](./src/services/api.ts).
-
-### Endpoints:
-- `POST /api/analyze` — Primary agentic pipeline orchestrator
-- `POST /api/ground` — Specialized visual grounding inference
-- `POST /api/vqa` — Visual Question Answering inference
-- `GET /api/health` — Cluster telemetry and loaded model weights
-
-To connect a live FastAPI server, set the environment variable:
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
+- **CURRENT**:
+  - React/Vite interactive geospatial workspace
+  - FastAPI backend integration
+  - 100 MB upload limit validation (frontend & backend)
+  - Multilingual natural language querying (English, Hindi, Hinglish)
+  - Single-load model lifecycle and confidence scoring
+- **NEXT**:
+  - Domain-specific remote-sensing model fine-tuning
+  - Visual grounding segmentation overlays
+  - Optical + SAR multi-sensor fusion
+  - Automated change detection across temporal pairs
+- **FUTURE**:
+  - Autonomous multi-agent query decomposition
+  - Distributed multi-sensor inference pipelines
+  - Mission-scale geospatial intelligence deployment

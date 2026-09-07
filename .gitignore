@@ -32,3 +32,22 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Python & Backend
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Large Model Weights (Keep .pkl config)
+models/*.bin
+models/*.pt
+models/*.pth
+models/*.safetensors
+models/InternVL2_5-2B
+models/InternVL2_5-2B/
+models/offload/
+!models/satquery_inference_config.pkl
