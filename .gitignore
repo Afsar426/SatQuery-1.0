@@ -1,0 +1,18 @@
+# Ignore all files by default.
+*
+
+# Keep directories traversable so allowed files can be found recursively.
+!*/
+
+# Keep only notebooks and pickle files.
+!*.ipynb
+!*.pkl
+!*.jpg
+!*.jpeg
+!*.png
+
+# Keep this ignore file itself.
+!.gitignore
+
+# Keep the complete SatQuery_AI folder local only.
+/SatQuery_AI/
